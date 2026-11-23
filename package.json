@@ -1,0 +1,22 @@
+{
+  "name": "sri-lanka-official-cpg-brand-scraper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Apify Actor that intelligently crawls official Sri Lankan CPG brand pages daily and produces a structured product + image database API.",
+  "scripts": {
+    "start": "npm run start:dev",
+    "start:dev": "tsx src/main.ts",
+    "start:prod": "node dist/main.js",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "apify": "^3.2.6",
+    "cheerio": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

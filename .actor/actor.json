@@ -1,0 +1,13 @@
+{
+  "actorSpecification": 1,
+  "name": "sri-lanka-official-cpg-brand-scraper",
+  "title": "Sri Lanka Official CPG Brand Product & Image Scraper",
+  "description": "Intelligently crawls official Sri Lankan CPG brand websites (Shopify, WooCommerce, WordPress, sitemaps, JSON-LD, DOM pagination) once a day and builds a structured product + image database API.",
+  "version": "1.0",
+  "buildTag": "latest",
+  "dockerfile": "../Dockerfile",
+  "input": "./input_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  }
+}

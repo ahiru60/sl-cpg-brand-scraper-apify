@@ -1,0 +1,36 @@
+{
+  "actorSpecification": 1,
+  "fields": {},
+  "views": {
+    "overview": {
+      "title": "Sri Lanka CPG Products",
+      "transformation": {
+        "fields": [
+          "name",
+          "brand",
+          "brandGroup",
+          "category",
+          "unit",
+          "suggestedPriceLkr",
+          "imageUrl",
+          "sourceUrl",
+          "extractionMethod"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "name": { "label": "Product Name", "format": "text" },
+          "brand": { "label": "Brand", "format": "text" },
+          "brandGroup": { "label": "Company", "format": "text" },
+          "category": { "label": "Category", "format": "text" },
+          "unit": { "label": "Unit", "format": "text" },
+          "suggestedPriceLkr": { "label": "Price (LKR)", "format": "number" },
+          "imageUrl": { "label": "Image", "format": "image" },
+          "sourceUrl": { "label": "Product Page", "format": "link" },
+          "extractionMethod": { "label": "Method", "format": "text" }
+        }
+      }
+    }
+  }
+}
