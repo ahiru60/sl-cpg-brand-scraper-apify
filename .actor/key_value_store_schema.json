@@ -1,0 +1,19 @@
+{
+  "actorKeyValueStoreSchemaVersion": 1,
+  "title": "Sri Lanka CPG Scraper Key-Value Store",
+  "description": "Run summaries and autonomous discovery reports produced by each Actor run.",
+  "collections": {
+    "summary": {
+      "title": "Run Summary",
+      "description": "Aggregate crawl statistics and per-domain status reports.",
+      "key": "SUMMARY",
+      "contentTypes": ["application/json"]
+    },
+    "discoveryReport": {
+      "title": "Discovery Report",
+      "description": "Newly discovered Sri Lankan CPG brands, validated domains, and newly detected products.",
+      "key": "DISCOVERY_REPORT",
+      "contentTypes": ["application/json"]
+    }
+  }
+}

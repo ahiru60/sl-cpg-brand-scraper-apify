@@ -1,0 +1,26 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "Sri Lanka Official CPG Brand Scraper Output",
+  "description": "Structured Sri Lankan CPG product catalog, run summary, and autonomous discovery report.",
+  "type": "object",
+  "properties": {
+    "products": {
+      "type": "string",
+      "title": "Scraped CPG Products Dataset",
+      "description": "All scraped and normalized Sri Lankan CPG products with images, prices, brands, and isNew/firstSeenAt tracking.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items"
+    },
+    "summary": {
+      "type": "string",
+      "title": "Run Summary",
+      "description": "Per-domain crawl status, product counts, and autonomous discovery totals.",
+      "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/SUMMARY"
+    },
+    "discoveryReport": {
+      "type": "string",
+      "title": "Autonomous Discovery Report",
+      "description": "Newly discovered Sri Lankan brands, newly validated brand domains, and sample of newly detected products.",
+      "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/DISCOVERY_REPORT"
+    }
+  }
+}
