@@ -24,8 +24,8 @@ interface ActorInput {
   discoveryStateStoreName?: string;
   serperApiKey?: string;
   geminiApiKey?: string;
-  agrodropSyncUrl?: string;
-  agrodropSyncSecret?: string;
+  webhookSyncUrl?: string;
+  webhookSyncSecret?: string;
 }
 
 await Actor.init();
@@ -280,7 +280,7 @@ if (shouldRunDiscovery) {
       url: entry.url,
       brandGroup: entry.brandGroup,
       sourceCategories: [`Discovered (${entry.discoveredVia})`],
-      defaultAgroCategory: entry.defaultAgroCategory,
+      defaultCategory: entry.defaultCategory,
       brands: entry.brands,
       productHints: [],
       isSupermarket: false,
@@ -340,21 +340,21 @@ await Actor.setValue("DISCOVERY_REPORT", {
   ...discoverySummary,
 });
 
-// Optional: push scraped products straight into AgroDrop's /api/cpg/sync webhook
-if (input.agrodropSyncUrl && allProducts.length > 0) {
+// Optional: push scraped products straight to a configured webhook endpoint
+if (input.webhookSyncUrl && allProducts.length > 0) {
   log.info(
-    `Syncing ${allProducts.length} products (${newProductsCount} new) to ${input.agrodropSyncUrl}...`
+    `Syncing ${allProducts.length} products (${newProductsCount} new) to ${input.webhookSyncUrl}...`
   );
   const chunkSize = 50;
   for (let i = 0; i < allProducts.length; i += chunkSize) {
     const chunk = allProducts.slice(i, i + chunkSize);
     try {
-      const res = await fetch(input.agrodropSyncUrl, {
+      const res = await fetch(input.webhookSyncUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(input.agrodropSyncSecret
-            ? { "x-cpg-sync-secret": input.agrodropSyncSecret }
+          ...(input.webhookSyncSecret
+            ? { "x-cpg-sync-secret": input.webhookSyncSecret }
             : {}),
         },
         body: JSON.stringify({

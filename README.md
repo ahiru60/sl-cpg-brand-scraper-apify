@@ -1,6 +1,6 @@
 # Sri Lanka Official CPG Brand Scraper (Apify Actor)
 
-An autonomous Apify Actor that crawls **official Sri Lankan CPG/FMCG brand websites and online supermarkets**, **automatically discovers missing Sri Lankan brands and new products on the internet**, tracks newly launched SKUs across runs (`isNew`, `firstSeenAt`), and exposes a clean **Product + Image Database API** via Apify's REST API and AgroDrop's `/api/cpg/sync` webhook.
+An autonomous Apify Actor that crawls **official Sri Lankan CPG/FMCG brand websites and online supermarkets**, **automatically discovers missing Sri Lankan brands and new products on the internet**, tracks newly launched SKUs across runs (`isNew`, `firstSeenAt`), and exposes a clean **Product + Image Database API** via Apify's REST API and optional webhook push.
 
 ---
 
@@ -68,8 +68,8 @@ All parameters are optional—running with `{}` crawls all 47 official domains p
 | `discoveryStateStoreName` | `string` | `"sl-cpg-discovery-state"` | Named Apify Key-Value Store for cross-run product slug and discovered-domain persistence. |
 | `serperApiKey` | `string` *(secret)* | — | Optional [Serper.dev](https://serper.dev) key for Sri Lanka Google Search (`gl=lk`). Falls back to DuckDuckGo if omitted. |
 | `geminiApiKey` | `string` *(secret)* | — | Optional Google Gemini API key (`gemini-2.5-flash` with Google Search grounding) for AI-assisted missing brand discovery. |
-| `agrodropSyncUrl` | `string` | — | Optional webhook URL (e.g. `https://your-domain.vercel.app/api/cpg/sync`) to push scraped products in chunks of 50. |
-| `agrodropSyncSecret` | `string` *(secret)* | — | Sent as `x-cpg-sync-secret` header when calling `agrodropSyncUrl`. |
+| `webhookSyncUrl` | `string` | — | Optional HTTP POST webhook URL (e.g. `https://your-api.example.com/api/cpg/sync`) to push scraped products in chunks of 50. |
+| `webhookSyncSecret` | `string` *(secret)* | — | Sent as `x-cpg-sync-secret` header when calling `webhookSyncUrl`. |
 
 ### Example Inputs
 
@@ -82,8 +82,8 @@ All parameters are optional—running with `{}` crawls all 47 official domains p
   "enableAutonomousDiscovery": true,
   "enableOpenFoodFacts": true,
   "maxNewBrandsPerRun": 10,
-  "agrodropSyncUrl": "https://your-agrodrop-domain.vercel.app/api/cpg/sync",
-  "agrodropSyncSecret": "your-secret"
+  "webhookSyncUrl": "https://your-api.example.com/api/cpg/sync",
+  "webhookSyncSecret": "your-secret"
 }
 ```
 
@@ -179,12 +179,12 @@ curl -X POST "https://api.apify.com/v2/acts/<YOUR_USERNAME>~sri-lanka-official-c
   -d '{"enableAutonomousDiscovery": true, "maxNewBrandsPerRun": 10}'
 ```
 
-### Option B: Push Directly to AgroDrop Webhook
-Set `agrodropSyncUrl` and `agrodropSyncSecret` in the Actor input. The Actor sends batched `POST` requests (50 products per chunk):
+### Option B: Push Directly to a Custom Webhook
+Set `webhookSyncUrl` and `webhookSyncSecret` in the Actor input. The Actor sends batched `POST` requests (50 products per chunk):
 ```http
 POST /api/cpg/sync HTTP/1.1
 Content-Type: application/json
-x-cpg-sync-secret: <agrodropSyncSecret>
+x-cpg-sync-secret: <webhookSyncSecret>
 
 {
   "mode": "push",

@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import {
   detectIndividualBrand,
-  inferAgroCategory,
+  inferCatalogCategory,
   inferCategoryEmoji,
   type OfficialDomainTarget,
 } from "./brands.js";
@@ -290,7 +290,7 @@ function buildProductRecord(
       : cleanedName;
 
   const unit = raw.unit?.trim() || extractUnitFromTitle(finalName, "1 pack");
-  const category = inferAgroCategory(finalName, brand, target.defaultAgroCategory);
+  const category = inferCatalogCategory(finalName, brand, target.defaultCategory);
   const emoji = inferCategoryEmoji(category);
   const slug = slugifyProduct(
     unit !== "1 pack" && !finalName.toLowerCase().includes(unit.toLowerCase())

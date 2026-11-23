@@ -14,7 +14,7 @@ export interface DiscoveredDomainEntry {
   url: string;
   brandGroup: string;
   brands: string[];
-  defaultAgroCategory: string;
+  defaultCategory: string;
   discoveredVia: "open-food-facts" | "web-search" | "serper" | "gemini" | "supermarket-mining";
   discoveredAt: string;
   lastCrawledAt?: string;
@@ -85,7 +85,7 @@ export function getActiveDiscoveredTargets(
       url: entry.url,
       brandGroup: entry.brandGroup,
       sourceCategories: [`Discovered (${entry.discoveredVia})`],
-      defaultAgroCategory: entry.defaultAgroCategory || "Pantry",
+      defaultCategory: entry.defaultCategory || "Pantry",
       brands: entry.brands.length > 0 ? entry.brands : [entry.brandGroup],
       productHints: [],
       isSupermarket: false,

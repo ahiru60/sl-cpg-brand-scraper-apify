@@ -81,16 +81,16 @@
       "editor": "textfield",
       "isSecret": true
     },
-    "agrodropSyncUrl": {
-      "title": "AgroDrop Sync Webhook URL (optional)",
+    "webhookSyncUrl": {
+      "title": "Webhook Sync URL (optional)",
       "type": "string",
-      "description": "e.g. https://your-agrodrop-domain.vercel.app/api/cpg/sync — if set, pushes scraped products directly into AgroDrop's Supabase Product DB.",
+      "description": "Optional HTTP POST webhook endpoint (e.g. https://your-api.example.com/api/cpg/sync) to push scraped products in batches of 50.",
       "editor": "textfield"
     },
-    "agrodropSyncSecret": {
-      "title": "AgroDrop Sync Secret (optional)",
+    "webhookSyncSecret": {
+      "title": "Webhook Sync Secret (optional)",
       "type": "string",
-      "description": "Matches CPG_SYNC_SECRET in AgroDrop environment variables.",
+      "description": "Optional shared secret sent in the x-cpg-sync-secret request header when pushing to webhookSyncUrl.",
       "editor": "textfield",
       "isSecret": true
     }

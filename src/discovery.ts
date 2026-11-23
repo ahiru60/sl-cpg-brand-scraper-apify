@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 import { log } from "apify";
 import {
   ALL_KNOWN_BRANDS,
-  inferAgroCategory,
+  inferCatalogCategory,
   inferCategoryEmoji,
   type OfficialDomainTarget,
 } from "./brands.js";
@@ -28,7 +28,7 @@ export interface SearchHit {
 export interface BrandCandidate {
   brandName: string;
   suggestedUrl?: string;
-  agroCategory?: string;
+  catalogCategory?: string;
   via: DiscoveredDomainEntry["discoveredVia"];
 }
 
@@ -252,7 +252,7 @@ export async function fetchOpenFoodFactsSriLanka(
       const unit =
         (item.quantity && item.quantity.trim().slice(0, 24)) ||
         extractUnitFromTitle(finalName, "1 pack");
-      const category = inferAgroCategory(
+      const category = inferCatalogCategory(
         `${finalName} ${item.categories || ""}`,
         brand,
         "Pantry"
@@ -522,7 +522,7 @@ interface GeminiBrandSuggestion {
   brandGroup?: string;
   brands?: string[];
   url?: string;
-  agroCategory?: string;
+  catalogCategory?: string;
 }
 
 async function discoverMissingBrandsViaGemini(
@@ -541,7 +541,7 @@ Return ONLY a valid JSON array (no markdown fences, no commentary) of objects wi
 - "brandGroup": string (company or brand name)
 - "brands": string[] (individual consumer brand names)
 - "url": string (official https:// homepage URL)
-- "agroCategory": one of "Dairy & Eggs", "Bakery & Tea", "Rice & Grains", "Spices", "Coconut & Oils", "Household", "Dry Rations", "Pantry"`;
+- "catalogCategory": one of "Dairy & Eggs", "Bakery & Tea", "Rice & Grains", "Spices", "Coconut & Oils", "Household", "Dry Rations", "Pantry"`;
 
   const res = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
@@ -585,7 +585,7 @@ Return ONLY a valid JSON array (no markdown fences, no commentary) of objects wi
       candidates.push({
         brandName: s.brandGroup.trim(),
         suggestedUrl: s.url.trim(),
-        agroCategory: s.agroCategory,
+        catalogCategory: s.catalogCategory,
         via: "gemini",
       });
     }
@@ -683,15 +683,15 @@ async function validateSriLankaCpgDomain(
       ? brandHint
       : pageTitle.split(/[|\-–—]/)[0]?.trim().slice(0, 50) || host;
 
-  const defaultAgroCategory =
-    categoryHint || inferAgroCategory(`${cleanBrandGroup} ${pageTitle}`, cleanBrandGroup, "Pantry");
+  const defaultCategory =
+    categoryHint || inferCatalogCategory(`${cleanBrandGroup} ${pageTitle}`, cleanBrandGroup, "Pantry");
 
   return {
     domain: host,
     url: origin,
     brandGroup: cleanBrandGroup,
     brands: [cleanBrandGroup],
-    defaultAgroCategory,
+    defaultCategory,
     discoveredVia: via,
     discoveredAt: new Date().toISOString(),
     consecutiveFailures: 0,
@@ -785,7 +785,7 @@ export async function runAutonomousSriLankaDiscovery(
     url: string,
     brandName: string,
     via: DiscoveredDomainEntry["discoveredVia"],
-    agroCategory?: string
+    catalogCategory?: string
   ) => {
     if (newlyValidatedDomains.length >= options.maxNewBrandsPerRun) return false;
     const host = normalizeHost(url);
@@ -795,7 +795,7 @@ export async function runAutonomousSriLankaDiscovery(
       url,
       brandName,
       via,
-      agroCategory,
+      catalogCategory,
       timeoutMs
     );
     if (validated) {
@@ -817,7 +817,7 @@ export async function runAutonomousSriLankaDiscovery(
         cand.suggestedUrl,
         cand.brandName,
         cand.via,
-        cand.agroCategory
+        cand.catalogCategory
       );
     }
   }
@@ -836,7 +836,7 @@ export async function runAutonomousSriLankaDiscovery(
     const query = `"${cand.brandName}" Sri Lanka official website products`;
     const { hits, via } = await searchInternet(query, options.serperApiKey, timeoutMs);
     for (const hit of hits.slice(0, 3)) {
-      const added = await tryAddDomain(hit.url, cand.brandName, via, cand.agroCategory);
+      const added = await tryAddDomain(hit.url, cand.brandName, via, cand.catalogCategory);
       if (added) break;
     }
     await sleep(350);
