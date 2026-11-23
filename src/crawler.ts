@@ -33,7 +33,14 @@ export interface ScrapedOfficialProduct {
     | "json-ld"
     | "og-meta"
     | "dom-card"
-    | "dom-detail";
+    | "dom-detail"
+    | "open-food-facts";
+  sourceType?: "official" | "supermarket" | "discovered-brand" | "open-food-facts";
+  isNew?: boolean;
+  firstSeenAt?: string;
+  isDiscoveredBrand?: boolean;
+  discoveredVia?: string;
+  scrapedAt?: string;
 }
 
 export interface DomainCrawlResult {

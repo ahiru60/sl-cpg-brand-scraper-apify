@@ -12,6 +12,9 @@
           "category",
           "unit",
           "suggestedPriceLkr",
+          "isNew",
+          "isDiscoveredBrand",
+          "firstSeenAt",
           "imageUrl",
           "sourceUrl",
           "extractionMethod"
@@ -26,6 +29,9 @@
           "category": { "label": "Category", "format": "text" },
           "unit": { "label": "Unit", "format": "text" },
           "suggestedPriceLkr": { "label": "Price (LKR)", "format": "number" },
+          "isNew": { "label": "New?", "format": "boolean" },
+          "isDiscoveredBrand": { "label": "Auto-Discovered Brand?", "format": "boolean" },
+          "firstSeenAt": { "label": "First Seen", "format": "date" },
           "imageUrl": { "label": "Image", "format": "image" },
           "sourceUrl": { "label": "Product Page", "format": "link" },
           "extractionMethod": { "label": "Method", "format": "text" }

@@ -6,7 +6,7 @@
     "domains": {
       "title": "Filter Domains (optional)",
       "type": "array",
-      "description": "Optional list of specific domains to crawl (e.g. ['ustore.lk', 'elephanthouse.lk']). Leave empty to crawl all 47 official Sri Lankan brand & supermarket domains.",
+      "description": "Optional list of specific domains to crawl (e.g. ['ustore.lk', 'elephanthouse.lk']). Leave empty to crawl all 47 official Sri Lankan brand & supermarket domains plus auto-discovered brands.",
       "editor": "stringList",
       "default": []
     },
@@ -31,6 +31,55 @@
       "default": 60,
       "minimum": 1,
       "maximum": 500
+    },
+    "enableAutonomousDiscovery": {
+      "title": "Enable Autonomous Sri Lanka Brand & Product Discovery",
+      "type": "boolean",
+      "description": "Autonomously discovers missing Sri Lankan CPG brands and new products on the internet (Open Food Facts SL, supermarket brand mining, DuckDuckGo/Serper search, and optional Gemini AI), validates their official domains, and persists them for future runs.",
+      "default": true
+    },
+    "enableOpenFoodFacts": {
+      "title": "Include Open Food Facts (Sri Lanka)",
+      "type": "boolean",
+      "description": "Query the free Open Food Facts Sri Lanka API to discover new CPG products and missing Sri Lankan brands.",
+      "default": true
+    },
+    "maxOpenFoodFactsPages": {
+      "title": "Max Open Food Facts Pages",
+      "type": "integer",
+      "description": "Number of 100-item pages to fetch from Open Food Facts Sri Lanka (sorted by most recently modified).",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10
+    },
+    "maxNewBrandsPerRun": {
+      "title": "Max New Brand Domains Per Run",
+      "type": "integer",
+      "description": "Maximum newly discovered Sri Lankan CPG brand websites to validate and crawl per run.",
+      "default": 10,
+      "minimum": 0,
+      "maximum": 50
+    },
+    "discoveryStateStoreName": {
+      "title": "Persistent Discovery State KV Store Name",
+      "type": "string",
+      "description": "Named Apify Key-Value Store used to persist seen product slugs (for isNew/firstSeenAt tracking) and newly discovered Sri Lankan brand domains across runs.",
+      "editor": "textfield",
+      "default": "sl-cpg-discovery-state"
+    },
+    "serperApiKey": {
+      "title": "Serper.dev Google Search API Key (optional)",
+      "type": "string",
+      "description": "Optional Serper API key for Sri Lanka Google Search (gl=lk) brand discovery. If omitted, falls back to zero-API-key DuckDuckGo search.",
+      "editor": "textfield",
+      "isSecret": true
+    },
+    "geminiApiKey": {
+      "title": "Gemini API Key (optional)",
+      "type": "string",
+      "description": "Optional Google Gemini API key to use Gemini 2.5 Flash with Google Search grounding for discovering missing Sri Lankan CPG brands.",
+      "editor": "textfield",
+      "isSecret": true
     },
     "agrodropSyncUrl": {
       "title": "AgroDrop Sync Webhook URL (optional)",
