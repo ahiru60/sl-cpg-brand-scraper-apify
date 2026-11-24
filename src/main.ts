@@ -4,7 +4,15 @@ import {
   crawlOfficialBrandDomain,
   type ScrapedOfficialProduct,
 } from "./crawler.js";
-import { runAutonomousSriLankaDiscovery } from "./discovery.js";
+import {
+  buildKnownBrandSet,
+  buildOpenFoodFactsBarcodeIndex,
+  fetchOpenFoodFactsSriLanka,
+  lookupBarcodeInIndex,
+  runAutonomousSriLankaDiscovery,
+  type BarcodeIndex,
+  type BrandCandidate,
+} from "./discovery.js";
 import {
   getActiveDiscoveredTargets,
   loadDiscoveryState,
@@ -72,6 +80,32 @@ if (!includeSupermarkets) {
   targets = targets.filter((t) => !t.isSupermarket);
 }
 
+const shouldRunDiscovery =
+  input.enableAutonomousDiscovery !== undefined
+    ? input.enableAutonomousDiscovery
+    : domainFilter.size === 0;
+
+// Pre-load Open Food Facts Sri Lanka when enabled so we can enrich Phase 1 products with EAN/UPC barcodes
+let preFetchedOpenFoodFacts:
+  | { products: ScrapedOfficialProduct[]; missingBrands: BrandCandidate[] }
+  | undefined;
+let offBarcodeIndex: BarcodeIndex | null = null;
+
+if (shouldRunDiscovery && enableOpenFoodFacts) {
+  const allKnownTargets = [...OFFICIAL_DOMAIN_TARGETS, ...persistedDiscoveredTargets];
+  const knownBrandSet = buildKnownBrandSet([
+    ...state.knownMissingBrandNames,
+    ...allKnownTargets.map((t) => t.brandGroup),
+    ...allKnownTargets.flatMap((t) => t.brands),
+  ]);
+  preFetchedOpenFoodFacts = await fetchOpenFoodFactsSriLanka(
+    knownBrandSet,
+    maxOpenFoodFactsPages,
+    12000
+  );
+  offBarcodeIndex = buildOpenFoodFactsBarcodeIndex(preFetchedOpenFoodFacts.products);
+}
+
 log.info(
   `Starting Sri Lankan CPG brand crawl across ${targets.length} domains ` +
     `(${persistedDiscoveredTargets.length} previously auto-discovered, autonomousDiscovery=${enableAutonomousDiscovery})...`
@@ -108,11 +142,18 @@ async function processAndPushProducts(
     if (seenInThisRun.has(p.slug)) continue;
     seenInThisRun.add(p.slug);
 
-    const { isNew, firstSeenAt } = trackProductSlug(state, p, nowIso);
+    const enrichedBarcode = p.barcode ?? lookupBarcodeInIndex(p, offBarcodeIndex);
+    const { isNew, firstSeenAt, knownBarcode } = trackProductSlug(
+      state,
+      { ...p, barcode: enrichedBarcode },
+      nowIso
+    );
     if (isNew) newProductsCount++;
 
     ready.push({
       ...p,
+      barcode: enrichedBarcode ?? knownBarcode,
+      sku: p.sku ?? null,
       source: "apify",
       sourceType: meta.sourceType,
       isNew,
@@ -231,11 +272,6 @@ let discoverySummary = {
   }>,
 };
 
-const shouldRunDiscovery =
-  input.enableAutonomousDiscovery !== undefined
-    ? input.enableAutonomousDiscovery
-    : domainFilter.size === 0;
-
 if (shouldRunDiscovery) {
   log.info("Running autonomous Sri Lanka CPG brand & product discovery...");
   const allKnownTargets = [...OFFICIAL_DOMAIN_TARGETS, ...persistedDiscoveredTargets];
@@ -251,6 +287,7 @@ if (shouldRunDiscovery) {
       serperApiKey: input.serperApiKey?.trim() || undefined,
       geminiApiKey: input.geminiApiKey?.trim() || undefined,
       requestTimeoutMs: 10000,
+      preFetchedOpenFoodFacts,
     }
   );
 
@@ -306,12 +343,15 @@ if (shouldRunDiscovery) {
 // Save updated cross-run state back to persistent KV store
 await saveDiscoveryState();
 
+const productsWithBarcodeCount = allProducts.filter((p) => Boolean(p.barcode)).length;
+
 const summaryPayload = {
   finishedAt: new Date().toISOString(),
   domainsTotal: domainReports.length,
   domainsOk: domainReports.filter((d) => d.status === "ok").length,
   domainsBlocked: domainReports.filter((d) => d.status === "blocked").length,
   totalProducts: allProducts.length,
+  productsWithBarcodeCount,
   newProductsCount,
   totalKnownProductsInState: Object.keys(state.seenProducts).length,
   totalDiscoveredDomainsInState: Object.keys(state.discoveredDomains).length,
@@ -323,6 +363,7 @@ await Actor.setValue("SUMMARY", summaryPayload);
 await Actor.setValue("DISCOVERY_REPORT", {
   generatedAt: new Date().toISOString(),
   newProductsCount,
+  productsWithBarcodeCount,
   newProductsSample: allProducts
     .filter((p) => p.isNew)
     .slice(0, 100)
@@ -333,6 +374,8 @@ await Actor.setValue("DISCOVERY_REPORT", {
       category: p.category,
       unit: p.unit,
       suggestedPriceLkr: p.suggestedPriceLkr,
+      barcode: p.barcode,
+      sku: p.sku,
       sourceUrl: p.sourceUrl,
       isDiscoveredBrand: p.isDiscoveredBrand,
       discoveredVia: p.discoveredVia,

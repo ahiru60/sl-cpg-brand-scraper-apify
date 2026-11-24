@@ -126,6 +126,8 @@ Each item pushed to the Apify Dataset follows this schema:
   "description": "Official Sunlight product (120g) from Unilever Sri Lanka.",
   "unit": "120g",
   "suggestedPriceLkr": 145,
+  "barcode": "4792024001234",
+  "sku": "UL-SUN-120G",
   "imageEmoji": "🧴",
   "imageUrl": "https://cdn.shopify.com/...",
   "source": "apify",
@@ -145,6 +147,8 @@ Each item pushed to the Apify Dataset follows this schema:
 | Field | Values / Notes |
 | :--- | :--- |
 | `category` | One of `Dairy & Eggs`, `Bakery & Tea`, `Rice & Grains`, `Spices`, `Coconut & Oils`, `Household`, `Dry Rations`, `Pantry` |
+| `barcode` | Retail barcode (`EAN-8`, `UPC-A`, `EAN-13`, or `GTIN-14`) extracted from Open Food Facts, JSON-LD, WooCommerce/Shopify, DOM/meta tags, or cross-enriched from Open Food Facts Sri Lanka; `null` if unavailable |
+| `sku` | Store SKU / MPN when exposed by Shopify, WooCommerce, JSON-LD, or product markup; `null` if unavailable |
 | `extractionMethod` | `shopify-json`, `woo-store-api`, `wp-rest-api`, `json-ld`, `dom-card`, `og-meta`, `dom-detail`, `open-food-facts` |
 | `sourceType` | `official`, `supermarket`, `discovered-brand`, `open-food-facts` |
 | `isNew` | `true` on the first run a product `slug` is ever seen; `false` on subsequent runs |

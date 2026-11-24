@@ -7,7 +7,10 @@ import {
 } from "./brands.js";
 import {
   cleanProductTitle,
+  cleanSku,
+  extractBarcodeFromText,
   extractUnitFromTitle,
+  normalizeBarcode,
   slugifyProduct,
 } from "./utils.js";
 
@@ -20,6 +23,8 @@ export interface ScrapedOfficialProduct {
   description: string;
   unit: string;
   suggestedPriceLkr: number | null;
+  barcode: string | null;
+  sku: string | null;
   imageEmoji: string;
   imageUrl: string;
   source: "official" | "supermarket" | "apify";
@@ -263,6 +268,8 @@ function buildProductRecord(
     description?: string;
     unit?: string;
     priceLkr?: number | null;
+    barcode?: unknown;
+    sku?: unknown;
     imageUrl: string;
     sourceUrl: string;
     brandOverride?: string;
@@ -325,6 +332,12 @@ function buildProductRecord(
     .slice(0, 30)
     .join(" ");
 
+  const sku = cleanSku(raw.sku);
+  const barcode =
+    normalizeBarcode(raw.barcode) ||
+    (sku ? normalizeBarcode(sku, true) : null) ||
+    extractBarcodeFromText(cleanDesc);
+
   return {
     slug,
     name: finalName,
@@ -334,6 +347,8 @@ function buildProductRecord(
     description,
     unit,
     suggestedPriceLkr: raw.priceLkr ?? null,
+    barcode,
+    sku,
     imageEmoji: emoji,
     imageUrl: raw.imageUrl,
     source: target.isSupermarket ? "supermarket" : "official",
@@ -353,7 +368,13 @@ interface ShopifyProduct {
   vendor?: string;
   product_type?: string;
   images?: Array<{ src?: string }>;
-  variants?: Array<{ title?: string; price?: string; grams?: number }>;
+  variants?: Array<{
+    title?: string;
+    price?: string;
+    grams?: number;
+    sku?: string | null;
+    barcode?: string | null;
+  }>;
 }
 
 async function tryShopifyJson(
@@ -405,6 +426,8 @@ async function tryShopifyJson(
               ? `${firstVariant.grams}g`
               : "1 pack"),
           priceLkr: parseLkrPrice(firstVariant?.price),
+          barcode: firstVariant?.barcode,
+          sku: firstVariant?.sku,
           imageUrl: img,
           sourceUrl: item.handle
             ? `${baseUrl}/products/${item.handle}`
@@ -429,6 +452,8 @@ async function tryShopifyJson(
 interface WooStoreProduct {
   name?: string;
   permalink?: string;
+  sku?: string;
+  global_unique_id?: string;
   description?: string;
   short_description?: string;
   prices?: { price?: string; currency_minor_unit?: number; currency_code?: string };
@@ -485,6 +510,8 @@ async function tryWooAndWpApi(
           name: item.name,
           description: item.short_description || item.description || "",
           priceLkr,
+          barcode: item.global_unique_id,
+          sku: item.sku,
           imageUrl: img,
           sourceUrl: item.permalink || baseUrl,
           extractionMethod: "woo-store-api",
@@ -707,12 +734,26 @@ function extractProductsFromHtml(
         const priceLkr = parseLkrPrice(offer?.price ?? offer?.lowPrice);
         const brandName =
           typeof node.brand === "string" ? node.brand : node.brand?.name;
+        const barcodeRaw =
+          node.gtin13 ??
+          node.gtin ??
+          node.gtin14 ??
+          node.gtin12 ??
+          node.gtin8 ??
+          node.ean ??
+          node.upc ??
+          offer?.gtin13 ??
+          offer?.gtin ??
+          offer?.ean;
+        const skuRaw = node.sku ?? node.mpn ?? offer?.sku;
 
         const record = buildProductRecord(
           {
             name: String(name),
             description: String(node.description || ""),
             priceLkr,
+            barcode: barcodeRaw,
+            sku: skuRaw,
             imageUrl: resolvedImg,
             sourceUrl: resolveUrl(node.url, pageUrl) || pageUrl,
             brandOverride: brandName,
@@ -785,12 +826,24 @@ function extractProductsFromHtml(
         .text()
         .trim();
       const descText = $card.find("p").first().text().trim();
+      const cardBarcode =
+        $card.attr("data-barcode") ||
+        $card.attr("data-ean") ||
+        $card.attr("data-gtin") ||
+        $card.find("[data-barcode], [data-ean], [data-gtin]").first().attr("data-barcode") ||
+        $card.find("[itemprop='gtin13'], [itemprop='gtin']").first().text().trim();
+      const cardSku =
+        $card.attr("data-sku") ||
+        $card.find("[data-product_sku]").first().attr("data-product_sku") ||
+        $card.find(".sku, [itemprop='sku']").first().text().trim();
 
       const record = buildProductRecord(
         {
           name: titleText,
           description: descText,
           priceLkr: parseLkrPrice(priceText),
+          barcode: cardBarcode,
+          sku: cardSku,
           imageUrl: imgUrl,
           sourceUrl: resolveUrl(linkHref, pageUrl) || pageUrl,
           extractionMethod: "dom-card",
@@ -846,11 +899,29 @@ function extractProductsFromHtml(
     if (isValidProductImageUrl(mainImg)) {
       // Strip site suffix like " - Brand Name"
       const cleanTitle = ogTitle.replace(/\s*[|\-–—]\s*[^|\-–—]{2,40}$/, "").trim();
+      const metaBarcode =
+        $('meta[property="product:ean"]').attr("content") ||
+        $('meta[property="product:upc"]').attr("content") ||
+        $('meta[property="product:gtin"]').attr("content") ||
+        $('[itemprop="gtin13"], [itemprop="gtin14"], [itemprop="gtin12"], [itemprop="gtin8"], [itemprop="gtin"]')
+          .first()
+          .attr("content") ||
+        $('[itemprop="gtin13"], [itemprop="gtin14"], [itemprop="gtin12"], [itemprop="gtin8"], [itemprop="gtin"]')
+          .first()
+          .text()
+          .trim();
+      const metaSku =
+        $('meta[property="product:retailer_item_id"]').attr("content") ||
+        $('[itemprop="sku"]').first().attr("content") ||
+        $('[itemprop="sku"], .sku').first().text().trim();
+
       const record = buildProductRecord(
         {
           name: cleanTitle || ogTitle,
           description: ogDesc,
           priceLkr: parseLkrPrice(metaPrice),
+          barcode: metaBarcode,
+          sku: metaSku,
           imageUrl: mainImg,
           sourceUrl: pageUrl,
           extractionMethod: /product/i.test(ogType) ? "og-meta" : "dom-detail",
@@ -892,8 +963,15 @@ export async function crawlOfficialBrandDomain(
     for (const item of items) {
       if (productsBySlug.size >= maxProductsPerDomain) break;
       const existing = productsBySlug.get(item.slug);
-      if (!existing || (!existing.suggestedPriceLkr && item.suggestedPriceLkr)) {
+      if (!existing) {
         productsBySlug.set(item.slug, item);
+      } else {
+        productsBySlug.set(item.slug, {
+          ...existing,
+          suggestedPriceLkr: existing.suggestedPriceLkr ?? item.suggestedPriceLkr,
+          barcode: existing.barcode ?? item.barcode,
+          sku: existing.sku ?? item.sku,
+        });
       }
     }
   };

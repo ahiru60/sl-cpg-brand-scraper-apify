@@ -8,7 +8,12 @@ import {
 } from "./brands.js";
 import type { ScrapedOfficialProduct } from "./crawler.js";
 import type { DiscoveredDomainEntry } from "./state.js";
-import { cleanProductTitle, extractUnitFromTitle, slugifyProduct } from "./utils.js";
+import {
+  cleanProductTitle,
+  extractUnitFromTitle,
+  normalizeBarcode,
+  slugifyProduct,
+} from "./utils.js";
 
 export interface DiscoveryOptions {
   enableOpenFoodFacts: boolean;
@@ -17,6 +22,10 @@ export interface DiscoveryOptions {
   serperApiKey?: string;
   geminiApiKey?: string;
   requestTimeoutMs?: number;
+  preFetchedOpenFoodFacts?: {
+    products: ScrapedOfficialProduct[];
+    missingBrands: BrandCandidate[];
+  };
 }
 
 export interface SearchHit {
@@ -143,7 +152,7 @@ async function fetchWithTimeout(
   }
 }
 
-function buildKnownBrandSet(extraBrands: string[] = []): Set<string> {
+export function buildKnownBrandSet(extraBrands: string[] = []): Set<string> {
   const set = new Set<string>();
   for (const b of [...ALL_KNOWN_BRANDS, ...extraBrands]) {
     const norm = b.trim().toLowerCase();
@@ -283,6 +292,8 @@ export async function fetchOpenFoodFactsSriLanka(
         description: `Sri Lankan CPG product (${unit}) discovered via Open Food Facts.`,
         unit,
         suggestedPriceLkr: null,
+        barcode: normalizeBarcode(item.code),
+        sku: null,
         imageEmoji: inferCategoryEmoji(category),
         imageUrl: img,
         source: "apify",
@@ -729,11 +740,13 @@ export async function runAutonomousSriLankaDiscovery(
   // 1. Open Food Facts Sri Lanka (zero-API-key structured CPG products + missing brand mining)
   if (options.enableOpenFoodFacts) {
     sourcesUsed.push("open-food-facts-sl");
-    const off = await fetchOpenFoodFactsSriLanka(
-      knownBrandSet,
-      options.maxOpenFoodFactsPages,
-      timeoutMs
-    );
+    const off =
+      options.preFetchedOpenFoodFacts ??
+      (await fetchOpenFoodFactsSriLanka(
+        knownBrandSet,
+        options.maxOpenFoodFactsPages,
+        timeoutMs
+      ));
     openFoodFactsProducts = off.products;
     brandCandidates.push(...off.missingBrands);
   }
@@ -866,4 +879,107 @@ export async function runAutonomousSriLankaDiscovery(
     missingBrandNamesFound,
     sourcesUsed,
   };
+}
+
+// ==================== BARCODE CROSS-ENRICHMENT INDEX ====================
+
+export interface BarcodeIndexEntry {
+  slug: string;
+  brandNorm: string;
+  unitNorm: string;
+  tokens: Set<string>;
+  barcode: string;
+}
+
+export interface BarcodeIndex {
+  bySlug: Map<string, string>;
+  byBrand: Map<string, BarcodeIndexEntry[]>;
+}
+
+function tokenizeForBarcodeMatch(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length >= 2)
+  );
+}
+
+export function buildOpenFoodFactsBarcodeIndex(
+  products: ScrapedOfficialProduct[]
+): BarcodeIndex {
+  const bySlug = new Map<string, string>();
+  const byBrand = new Map<string, BarcodeIndexEntry[]>();
+
+  for (const p of products) {
+    if (!p.barcode) continue;
+    bySlug.set(p.slug, p.barcode);
+
+    const brandNorm = p.brand.trim().toLowerCase();
+    const unitNorm = p.unit.trim().toLowerCase().replace(/\s+/g, "");
+    const entry: BarcodeIndexEntry = {
+      slug: p.slug,
+      brandNorm,
+      unitNorm,
+      tokens: tokenizeForBarcodeMatch(p.name),
+      barcode: p.barcode,
+    };
+
+    const list = byBrand.get(brandNorm) ?? [];
+    list.push(entry);
+    byBrand.set(brandNorm, list);
+  }
+
+  return { bySlug, byBrand };
+}
+
+/**
+ * Look up a matching EAN/UPC barcode from the Open Food Facts Sri Lanka index
+ * using exact slug match or conservative brand + unit + token-overlap matching.
+ */
+export function lookupBarcodeInIndex(
+  product: Pick<ScrapedOfficialProduct, "slug" | "brand" | "name" | "unit">,
+  index: BarcodeIndex | null
+): string | null {
+  if (!index) return null;
+
+  const exact = index.bySlug.get(product.slug);
+  if (exact) return exact;
+
+  const brandNorm = product.brand.trim().toLowerCase();
+  const candidates = index.byBrand.get(brandNorm);
+  if (!candidates || candidates.length === 0) return null;
+
+  const unitNorm = product.unit.trim().toLowerCase().replace(/\s+/g, "");
+  const tokens = tokenizeForBarcodeMatch(product.name);
+  if (tokens.size < 2) return null;
+
+  let bestBarcode: string | null = null;
+  let bestScore = 0;
+
+  for (const cand of candidates) {
+    // Require matching pack unit when both have explicit pack sizes (not default "1 pack")
+    if (
+      unitNorm !== "1pack" &&
+      cand.unitNorm !== "1pack" &&
+      unitNorm !== cand.unitNorm
+    ) {
+      continue;
+    }
+
+    let overlap = 0;
+    for (const t of tokens) {
+      if (cand.tokens.has(t)) overlap++;
+    }
+    const union = new Set([...tokens, ...cand.tokens]).size;
+    const jaccard = union > 0 ? overlap / union : 0;
+
+    if (overlap >= 3 && jaccard >= 0.6 && jaccard > bestScore) {
+      bestScore = jaccard;
+      bestBarcode = cand.barcode;
+    }
+  }
+
+  return bestBarcode;
 }

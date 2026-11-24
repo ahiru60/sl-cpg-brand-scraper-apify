@@ -7,6 +7,7 @@ export interface SeenProductMeta {
   brand: string;
   name: string;
   priceLkr: number | null;
+  barcode?: string | null;
 }
 
 export interface DiscoveredDomainEntry {
@@ -128,16 +129,24 @@ export function trackProductSlug(
     brand: string;
     name: string;
     suggestedPriceLkr: number | null;
+    barcode?: string | null;
   },
   nowIso: string
-): { isNew: boolean; firstSeenAt: string } {
+): { isNew: boolean; firstSeenAt: string; knownBarcode: string | null } {
   const existing = state.seenProducts[product.slug];
   if (existing) {
     existing.lastSeenAt = nowIso;
     if (product.suggestedPriceLkr !== null) {
       existing.priceLkr = product.suggestedPriceLkr;
     }
-    return { isNew: false, firstSeenAt: existing.firstSeenAt };
+    if (product.barcode) {
+      existing.barcode = product.barcode;
+    }
+    return {
+      isNew: false,
+      firstSeenAt: existing.firstSeenAt,
+      knownBarcode: existing.barcode ?? null,
+    };
   }
 
   state.seenProducts[product.slug] = {
@@ -146,7 +155,12 @@ export function trackProductSlug(
     brand: product.brand,
     name: product.name,
     priceLkr: product.suggestedPriceLkr,
+    barcode: product.barcode ?? null,
   };
 
-  return { isNew: true, firstSeenAt: nowIso };
+  return {
+    isNew: true,
+    firstSeenAt: nowIso,
+    knownBarcode: product.barcode ?? null,
+  };
 }
